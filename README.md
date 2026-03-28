@@ -19,7 +19,7 @@ Tool is still in development.
 
 - for example the number generated at the end of each name is random and not stored, therefore sometimes can occur that names with same numbers generate. That is going to result in an error
 
- - in addition wordwall botter works for only one TemplateID. TemplateId is a way a quiz is played or displayed in other words. Basically selecting answers is different than spinning the wheel
+ - in addition wordwall botter works for only one TemplateId. TemplateId is a way a quiz is played or displayed in other words. Basically selecting answers is different than spinning the wheel
  
 ### This tool works just only for the mode where you select answers. 
 ## Used By
