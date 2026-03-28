@@ -17,7 +17,7 @@ A tool used to flood wordwall leadeboards with customizable bots.
 
 Tool is still in development.
 
-- for example the number generated at the end of each name is random and not stores, therefore sometimes can occur that names with same numbers generate. That is going to result in an error
+- for example the number generated at the end of each name is random and not stored, therefore sometimes can occur that names with same numbers generate. That is going to result in an error
 
  - in addition wordwall botter works for only one TemplateID. TemplateId is a way a quiz is played or displayed in other words. Basically selecting answers is different than spinning the wheel
  
