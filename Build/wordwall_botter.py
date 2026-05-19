@@ -4,7 +4,7 @@ import re
 
 leaderboard_url = "https://wordwall.net/leaderboardajax/addentry"
 url_id = input("Enter wordwall url -> ")
-id = url_id.split("/")[4]
+id = url_id.split("/")[5]
 
 def get_templateId(url_id):
     response = requests.get(url_id)
@@ -33,27 +33,48 @@ bot_count = int(input("Enter how many bots do you want (less than 200) -> "))
 score = int(input("Enter score -> "))
 time_val = int(input("Enter time(s) -> "))
 templateId = get_templateId(url_id)
+print(templateId)
 
 def send_bots(score, time_val, name, activityId, templateId):
     if bot_count <= 200:
-        generated_num = 0
-        for i in range(bot_count):
+        if bot_count != 1:
+            generated_num = 0
+            for i in range(bot_count):
 
+                payload = {
+                    "score": score,
+                    "time": time_val * 1000,
+                    "name": f"{name}_{generated_num}",
+                    "mode": 1,
+                    "activityId": activityId,
+                    "templateId": templateId
+                }
+                generated_num = generated_num + 1
+                response = requests.post(leaderboard_url, data=payload)
+
+                if response.status_code == 200:
+                    print(f"[+] Bot {i+1} submitted successfully")
+                else:
+                    print(f"[-] Bot {i+1} failed with status {response.status_code}")
+
+
+        elif bot_count == 1:
             payload = {
                 "score": score,
                 "time": time_val * 1000,
-                "name": f"{name}_{generated_num}",
+                "name": f"{name}",
                 "mode": 1,
                 "activityId": activityId,
                 "templateId": templateId
             }
-            generated_num = generated_num + 1
-            response = requests.post(leaderboard_url, data=payload)
 
-            if response.status_code == 200:
-                print(f"[+] Bot {i+1} submitted successfully")
-            else:
-                print(f"[-] Bot {i+1} failed with status {response.status_code}")
+        response = requests.post(leaderboard_url, data=payload)
+
+        if response.status_code == 200:
+            print(f"[+] Bot {1} submitted successfully")
+        else:
+            print(f"[-] Bot {1} failed with status {response.status_code}")
+        
     else:
         print("Bot count must be 200 or less")
 
