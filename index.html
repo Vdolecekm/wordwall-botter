@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wordwall Bot</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Share Tech Mono', monospace;
+    background: #0d0d0d;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+  .card {
+    width: 100%;
+    max-width: 460px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 2rem;
+  }
+  h1 { font-size: 1.1rem; letter-spacing: 0.2em; color: #00e676; margin-bottom: 1.8rem; text-transform: uppercase; }
+  .field { margin-bottom: 1rem; }
+  label {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.72rem; color: #666; letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 0.35rem;
+  }
+  .max-tag {
+    font-size: 0.68rem; color: #00e676;
+    background: rgba(0,230,118,0.08);
+    border: 1px solid rgba(0,230,118,0.2);
+    padding: 1px 7px; border-radius: 3px; display: none;
+  }
+  input {
+    width: 100%; background: #0d0d0d; border: 1px solid #2a2a2a;
+    color: #e0e0e0; font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem; padding: 0.55rem 0.75rem;
+    border-radius: 4px; outline: none; transition: border-color 0.15s;
+  }
+  input:focus { border-color: #00e676; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  button {
+    width: 100%; margin-top: 1.25rem; padding: 0.75rem;
+    background: #00e676; color: #000;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.9rem;
+    font-weight: bold; letter-spacing: 0.1em; border: none;
+    border-radius: 4px; cursor: pointer; text-transform: uppercase;
+    transition: background 0.15s, transform 0.1s;
+  }
+  button:hover:not(:disabled) { background: #00ff88; }
+  button:active:not(:disabled) { transform: scale(0.99); }
+  button:disabled { background: #1a3d2a; color: #2a6644; cursor: not-allowed; }
+  #log {
+    margin-top: 1.25rem; background: #0a0a0a;
+    border: 1px solid #1e1e1e; border-radius: 4px;
+    padding: 0.75rem; height: 180px; overflow-y: auto;
+    font-size: 0.78rem; line-height: 1.7; display: none;
+  }
+  .ok  { color: #00e676; }
+  .err { color: #ff5252; }
+  .inf { color: #888; }
+  #bar-wrap { margin-top: 0.75rem; display: none; }
+  #bar-bg { background: #1e1e1e; height: 4px; border-radius: 2px; overflow: hidden; }
+  #bar-fill { height: 100%; background: #00e676; width: 0%; transition: width 0.2s; }
+  #bar-lbl { font-size: 0.7rem; color: #444; margin-top: 0.3rem; text-align: right; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Wordwall Bot</h1>
+
+  <div class="field">
+    <label>Wordwall URL</label>
+    <input id="url" type="text" placeholder="https://wordwall.net/resource/..." spellcheck="false">
+  </div>
+
+  <div class="field">
+    <label>Bot Name</label>
+    <input id="name" type="text" placeholder="test123">
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label>Bot Count</label>
+      <input id="count" type="number" value="1" min="1" max="200">
+    </div>
+    <div class="field">
+      <label>Score <span class="max-tag" id="max-tag">max: —</span></label>
+      <input id="score" type="number" value="9999">
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Time (seconds)</label>
+    <input id="time" type="number" value="1" min="1">
+  </div>
+
+  <button id="btn" onclick="run()">Launch Bots</button>
+
+  <div id="bar-wrap">
+    <div id="bar-bg"><div id="bar-fill"></div></div>
+    <div id="bar-lbl">0 / 0</div>
+  </div>
+
+  <div id="log"></div>
+</div>
+
+<script>
+function log(msg, cls='inf') {
+  const el = document.getElementById('log');
+  el.style.display = 'block';
+  const d = document.createElement('div');
+  d.className = cls; d.textContent = msg;
+  el.appendChild(d); el.scrollTop = el.scrollHeight;
+}
+
+function setBar(done, total) {
+  document.getElementById('bar-wrap').style.display = 'block';
+  document.getElementById('bar-fill').style.width = (done/total*100) + '%';
+  document.getElementById('bar-lbl').textContent = done + ' / ' + total;
+}
+
+// matches get_templateId() — GET the page, find window.pageData, return templateId
+async function getTemplateId(url) {
+  const res = await fetch(url);
+  const html = await res.text();
+  const match = html.match(/window\.pageData\s*=\s*(\{.*?\});/s);
+  if (!match) throw new Error('Could not find templateId');
+  return String(JSON.parse(match[1]).templateId);
+}
+
+// matches get_activity_metadata() — same page fetch, returns activityGuid + authorUserId
+async function getActivityMetadata(url) {
+  const res = await fetch(url);
+  const html = await res.text();
+  const match = html.match(/window\.pageData\s*=\s*(\{.*?\});/s);
+  if (!match) throw new Error('Could not find pageData');
+  const d = JSON.parse(match[1]);
+  return { activityGuid: d.activityGuid, authorUserId: String(d.authorUserId) };
+}
+
+// matches get_max_score() — fetches XML, counts <item> nodes
+async function getMaxScore(url) {
+  const { activityGuid, authorUserId } = await getActivityMetadata(url);
+  const xmlUrl = `https://user.cdn.wordwall.net/content-models/${authorUserId}/${activityGuid}.xml`;
+  const res = await fetch(xmlUrl);
+  if (!res.ok) throw new Error('Failed to fetch content model (status ' + res.status + ')');
+  const xml = await res.text();
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  return doc.querySelectorAll('template > data > item').length;
+}
+
+async function run() {
+  const url      = document.getElementById('url').value.trim();
+  const name     = document.getElementById('name').value.trim() || 'Bot';
+  const botCount = Math.min(parseInt(document.getElementById('count').value) || 1, 200);
+  const score    = parseInt(document.getElementById('score').value) || 0;
+  const timeVal  = parseInt(document.getElementById('time').value) || 1;
+  const activityId = parseInt(url.split('/')[4]);
+
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('log').style.display = 'block';
+  document.getElementById('btn').disabled = true;
+
+  // get max score (matches: Enter score (max is X))
+  try {
+    const max = await getMaxScore(url);
+    log('Enter score (max is ' + max + ') -> ' + score, 'ok');
+    document.getElementById('max-tag').textContent = 'max: ' + max;
+    document.getElementById('max-tag').style.display = 'inline';
+  } catch(e) {
+    log('Failed to fetch content model: ' + e.message, 'err');
+  }
+
+  // get templateId (matches: template id is: X)
+  let templateId;
+  try {
+    templateId = await getTemplateId(url);
+    log('template id is: ' + templateId, 'ok');
+  } catch(e) {
+    log('Could not find templateId: ' + e.message, 'err');
+    document.getElementById('btn').disabled = false;
+    return;
+  }
+
+  // send_bots()
+  let generated_num = 0;
+  for (let i = 0; i < botCount; i++) {
+    const payload = new URLSearchParams({
+      score:      score,
+      time:       timeVal * 1000,
+      name:       botCount === 1 ? name : name + '_' + generated_num,
+      mode:       1,
+      activityId: activityId,
+      templateId: templateId
+    });
+    if (botCount > 1) generated_num++;
+
+    try {
+      const res = await fetch('https://wordwall.net/leaderboardajax/addentry', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:    payload.toString()
+      });
+      if (res.ok) log('[+] Bot ' + (i+1) + ' submitted successfully', 'ok');
+      else        log('[-] Bot ' + (i+1) + ' failed with status ' + res.status, 'err');
+    } catch(e) {
+      log('[-] Bot ' + (i+1) + ' error: ' + e.message, 'err');
+    }
+
+    setBar(i+1, botCount);
+    await new Promise(r => setTimeout(r, 100));
+  }
+
+  document.getElementById('btn').disabled = false;
+}
+</script>
+</body>
+</html>
